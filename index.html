@@ -275,6 +275,36 @@
             text-align: center;
             padding: 20px;
             color: #667eea;
+            font-size: 1.1em;
+        }
+
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .file-option {
+            background: #f8f9ff;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+
+        .file-option p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #666;
         }
 
         @media (max-width: 768px) {
@@ -303,24 +333,43 @@
             <div class="logo">🍷 Cercle Œnophile</div>
             <h2 style="margin: 20px 0; color: #555;">Accès à votre historique</h2>
             
-            <div class="file-input-group">
-                <label for="excelFile">Chargement du fichier Excel :</label>
-                <input type="file" id="excelFile" accept=".xlsx,.xls" class="file-input" onchange="loadExcelFile(this)">
-                <div id="fileStatus" class="success" style="display: none;"></div>
+            <!-- Statut de chargement du fichier cloud -->
+            <div id="cloudLoadingStatus" class="loading">
+                <div class="loading-spinner"></div>
+                <p>Chargement des données...</p>
             </div>
             
-            <div class="input-group">
-                <label for="nomAbrege">Nom abrégé :</label>
-                <input type="text" id="nomAbrege" placeholder="ex: F Frédéric">
+            <!-- Formulaire de connexion (masqué pendant le chargement) -->
+            <div id="loginForm" style="display: none;">
+                <div class="file-option">
+                    <div id="fileStatus" class="success"></div>
+                    <p><strong>📊 Données automatiquement chargées</strong></p>
+                    <p>Le fichier Excel est chargé depuis le cloud</p>
+                </div>
+                
+                <div class="input-group">
+                    <label for="nomAbrege">Nom abrégé :</label>
+                    <input type="text" id="nomAbrege" placeholder="ex: B Cyril">
+                </div>
+                
+                <div class="input-group">
+                    <label for="motDePasse">Mot de passe (nom de famille) :</label>
+                    <input type="password" id="motDePasse" placeholder="ex: BAULAND">
+                </div>
+                
+                <button class="btn" id="loginBtn" onclick="login()">Se connecter</button>
+                
+                <!-- Option de chargement manuel en cas de problème -->
+                <details style="margin-top: 20px;">
+                    <summary style="cursor: pointer; color: #667eea;">Problème de chargement ? Cliquez ici</summary>
+                    <div class="file-input-group" style="margin-top: 15px;">
+                        <label for="excelFile">Chargement manuel du fichier Excel :</label>
+                        <input type="file" id="excelFile" accept=".xlsx,.xls" class="file-input" onchange="loadExcelFile(this)">
+                    </div>
+                </details>
+                
+                <div id="loginError" class="error"></div>
             </div>
-            
-            <div class="input-group">
-                <label for="motDePasse">Mot de passe (nom de famille) :</label>
-                <input type="password" id="motDePasse" placeholder="ex: FACOMPREZ">
-            </div>
-            
-            <button class="btn" id="loginBtn" onclick="login()" disabled>Se connecter</button>
-            <div id="loginError" class="error"></div>
         </div>
 
         <!-- Dashboard -->
@@ -417,6 +466,74 @@
         let userOrders = [];
         let filteredOrders = [];
 
+        // URL du fichier Excel sur Google Drive
+        const EXCEL_FILE_URL = 'https://drive.google.com/uc?export=download&id=1Z_44YXLgzSCQ9i3Ae3-AirGVrY5mobVp';
+
+        // Charger automatiquement le fichier au démarrage
+        window.addEventListener('DOMContentLoaded', function() {
+            loadCloudExcelFile();
+        });
+
+        async function loadCloudExcelFile() {
+            const loadingStatus = document.getElementById('cloudLoadingStatus');
+            const loginForm = document.getElementById('loginForm');
+            const errorDiv = document.getElementById('loginError');
+
+            try {
+                loadingStatus.querySelector('p').textContent = 'Téléchargement du fichier Excel...';
+                
+                // Télécharger le fichier depuis Google drive
+                const response = await fetch(EXCEL_FILE_URL);
+                
+                if (!response.ok) {
+                    throw new Error(`Impossible de télécharger le fichier: ${response.status} ${response.statusText}`);
+                }
+
+                loadingStatus.querySelector('p').textContent = 'Traitement des données...';
+                
+                // Lire le fichier comme ArrayBuffer
+                const arrayBuffer = await response.arrayBuffer();
+                const data = new Uint8Array(arrayBuffer);
+                
+                // Lire avec XLSX
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                // Chercher la feuille "Commandes groupées 2025"
+                const sheetName = "Commandes groupées 2025";
+                if (!workbook.SheetNames.includes(sheetName)) {
+                    throw new Error(`La feuille "${sheetName}" n'a pas été trouvée dans le fichier Excel. Feuilles disponibles: ${workbook.SheetNames.join(', ')}`);
+                }
+                const worksheet = workbook.Sheets[sheetName];
+                
+                // Convertir en JSON
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                
+                if (jsonData.length === 0) {
+                    throw new Error('Le fichier Excel est vide ou ne contient pas de données');
+                }
+
+                // Normaliser les données et extraire les utilisateurs
+                wineData = normalizeData(jsonData);
+                users = extractUsers(wineData);
+                
+                // Masquer le chargement et afficher le formulaire de connexion
+                loadingStatus.style.display = 'none';
+                loginForm.style.display = 'block';
+                
+                document.getElementById('fileStatus').textContent = `✓ ${jsonData.length} lignes chargées automatiquement`;
+                
+            } catch (error) {
+                console.error('Erreur lors du chargement du fichier cloud:', error);
+                
+                loadingStatus.style.display = 'none';
+                loginForm.style.display = 'block';
+                
+                errorDiv.textContent = 'Erreur lors du chargement automatique: ' + error.message;
+                document.getElementById('fileStatus').textContent = '⚠️ Chargement automatique échoué - utilisez le chargement manuel ci-dessous';
+                document.getElementById('fileStatus').className = 'error';
+            }
+        }
+
         function loadExcelFile(input) {
             const file = input.files[0];
             if (!file) return;
@@ -445,15 +562,14 @@
                     wineData = normalizeData(jsonData);
                     users = extractUsers(wineData);
                     
-                    document.getElementById('fileStatus').textContent = `✓ ${jsonData.length} lignes chargées`;
-                    document.getElementById('fileStatus').style.display = 'block';
-                    document.getElementById('loginBtn').disabled = false;
+                    document.getElementById('fileStatus').textContent = `✓ ${jsonData.length} lignes chargées manuellement`;
+                    document.getElementById('fileStatus').className = 'success';
                     document.getElementById('loginError').textContent = '';
                     
                 } catch (error) {
                     document.getElementById('loginError').textContent = 'Erreur lors du chargement du fichier: ' + error.message;
-                    document.getElementById('fileStatus').style.display = 'none';
-                    document.getElementById('loginBtn').disabled = true;
+                    document.getElementById('fileStatus').textContent = '❌ Erreur de chargement';
+                    document.getElementById('fileStatus').className = 'error';
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -542,7 +658,7 @@
             }
 
             if (wineData.length === 0) {
-                errorDiv.textContent = 'Veuillez charger un fichier Excel d\'abord';
+                errorDiv.textContent = 'Les données ne sont pas encore chargées. Veuillez patienter ou utiliser le chargement manuel.';
                 return;
             }
 
@@ -674,155 +790,4 @@
             
             // Afficher l'onglet sélectionné
             document.getElementById(tabName + 'Tab').classList.add('active');
-            event.target.classList.add('active');
-        }
-
-        function createCharts() {
-            createYearlyChart();
-            createRegionChart();
-            createDomainChart();
-        }
-
-        function createYearlyChart() {
-            const ctx = document.getElementById('yearlyChart').getContext('2d');
-            
-            // Détruire le graphique existant s'il y en a un
-            if (window.yearlyChartInstance) {
-                window.yearlyChartInstance.destroy();
-            }
-            
-            // Données par année
-            const yearlyData = {};
-            userOrders.forEach(order => {
-                const year = order.Année;
-                if (year) {
-                    if (!yearlyData[year]) {
-                        yearlyData[year] = { bottles: 0, total: 0 };
-                    }
-                    yearlyData[year].bottles += order.nb || 0;
-                    yearlyData[year].total += order.total || 0;
-                }
-            });
-            
-            const years = Object.keys(yearlyData).sort();
-            const bottles = years.map(year => yearlyData[year].bottles);
-            const totals = years.map(year => yearlyData[year].total);
-            
-            window.yearlyChartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: years,
-                    datasets: [{
-                        label: 'Bouteilles',
-                        data: bottles,
-                        borderColor: '#667eea',
-                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                        yAxisID: 'y'
-                    }, {
-                        label: 'Montant (€)',
-                        data: totals,
-                        borderColor: '#764ba2',
-                        backgroundColor: 'rgba(118, 75, 162, 0.1)',
-                        yAxisID: 'y1'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: 'Évolution des achats par année'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
-                        },
-                        y1: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right',
-                            grid: {
-                                drawOnChartArea: false,
-                            },
-                        }
-                    }
-                }
-            });
-        }
-
-        function createRegionChart() {
-            const ctx = document.getElementById('regionChart').getContext('2d');
-            
-            if (window.regionChartInstance) {
-                window.regionChartInstance.destroy();
-            }
-            
-            const regionData = {};
-            userOrders.forEach(order => {
-                const region = order.Région || 'Non spécifiée';
-                regionData[region] = (regionData[region] || 0) + (order.nb || 0);
-            });
-            
-            window.regionChartInstance = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(regionData),
-                    datasets: [{
-                        data: Object.values(regionData),
-                        backgroundColor: ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: 'Répartition par région'
-                        }
-                    }
-                }
-            });
-        }
-
-        function createDomainChart() {
-            const ctx = document.getElementById('domainChart').getContext('2d');
-            
-            if (window.domainChartInstance) {
-                window.domainChartInstance.destroy();
-            }
-            
-            const domainData = {};
-            userOrders.forEach(order => {
-                const domain = order.Domaine || 'Non spécifié';
-                domainData[domain] = (domainData[domain] || 0) + (order.total || 0);
-            });
-            
-            // Top 5 domaines
-            const sortedDomains = Object.entries(domainData)
-                .sort(([,a], [,b]) => b - a)
-                .slice(0, 5);
-            
-            window.domainChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: sortedDomains.map(([domain]) => domain),
-                    datasets: [{
-                        label: 'Montant dépensé (€)',
-                        data: sortedDomains.map(([, amount]) => amount),
-                        backgroundColor: '#667eea'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: 'Top 5 des domaines (par montant)'
-                        }
-                    }
+            event.target.classList.add('active
