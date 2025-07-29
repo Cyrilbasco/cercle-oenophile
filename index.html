@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cercle Œnophile - Mon Historique</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 400px;
+            margin: 100px auto;
+            text-align: center;
+        }
+
+        .dashboard {
+            display: none;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 30px;
+            margin-top: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .logo {
+            font-size: 2.5em;
+            font-weight: bold;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+        .user-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .input-group {
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .file-input-group {
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .file-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            background: #f8f9ff;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .file-input:hover {
+            background: #f0f4ff;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin: 10px 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .search-filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .search-filters input, .search-filters select {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .orders-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .orders-table th {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px 10px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .orders-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .orders-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .wine-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .domain {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .price {
+            font-weight: bold;
+            color: #28a745;
+        }
+
+        .error {
+            color: #dc3545;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .success {
+            color: #28a745;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .chart-container {
+            margin: 30px 0;
+            height: 300px;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            border-bottom-color: #667eea;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
+        @media (max-width: 768px) {
+            .search-filters {
+                flex-direction: column;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .orders-table {
+                font-size: 0.9em;
+            }
+            
+            .orders-table th, .orders-table td {
+                padding: 8px 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Écran de connexion -->
+        <div id="loginContainer" class="login-container">
+            <div class="logo">🍷 Cercle Œnophile</div>
+            <h2 style="margin: 20px 0; color: #555;">Accès à votre historique</h2>
+            
+            <div class="file-input-group">
+                <label for="excelFile">Chargement du fichier Excel :</label>
+                <input type="file" id="excelFile" accept=".xlsx,.xls" class="file-input" onchange="loadExcelFile(this)">
+                <div id="fileStatus" class="success" style="display: none;"></div>
+            </div>
+            
+            <div class="input-group">
+                <label for="nomAbrege">Nom abrégé :</label>
+                <input type="text" id="nomAbrege" placeholder="ex: F Frédéric">
+            </div>
+            
+            <div class="input-group">
+                <label for="motDePasse">Mot de passe (nom de famille) :</label>
+                <input type="password" id="motDePasse" placeholder="ex: FACOMPREZ">
+            </div>
+            
+            <button class="btn" id="loginBtn" onclick="login()" disabled>Se connecter</button>
+            <div id="loginError" class="error"></div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard" class="dashboard">
+            <div class="header">
+                <div class="logo">🍷 Cercle Œnophile</div>
+                <div class="user-info">
+                    <div class="user-name" id="userName"></div>
+                    <button class="btn btn-secondary" onclick="logout()">Déconnexion</button>
+                </div>
+            </div>
+
+            <!-- Onglets -->
+            <div class="tabs">
+                <div class="tab active" onclick="showTab('overview')">Vue d'ensemble</div>
+                <div class="tab" onclick="showTab('orders')">Mes commandes</div>
+                <div class="tab" onclick="showTab('stats')">Statistiques</div>
+            </div>
+
+            <!-- Contenu Vue d'ensemble -->
+            <div id="overviewTab" class="tab-content active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalOrders">0</div>
+                        <div class="stat-label">Commandes</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalBottles">0</div>
+                        <div class="stat-label">Bouteilles</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalSpent">0€</div>
+                        <div class="stat-label">Total dépensé</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="avgPrice">0€</div>
+                        <div class="stat-label">Prix moyen/bouteille</div>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="yearlyChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Contenu Commandes -->
+            <div id="ordersTab" class="tab-content">
+                <div class="search-filters">
+                    <input type="text" id="searchWine" placeholder="Rechercher un vin...">
+                    <select id="filterRegion">
+                        <option value="">Toutes les régions</option>
+                    </select>
+                    <select id="filterYear">
+                        <option value="">Toutes les années</option>
+                    </select>
+                    <button class="btn" onclick="applyFilters()">Filtrer</button>
+                    <button class="btn btn-secondary" onclick="resetFilters()">Reset</button>
+                </div>
+                
+                <table class="orders-table" id="ordersTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Vin</th>
+                            <th>Domaine</th>
+                            <th>Région</th>
+                            <th>Quantité</th>
+                            <th>Prix unitaire</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTableBody"></tbody>
+                </table>
+            </div>
+
+            <!-- Contenu Statistiques -->
+            <div id="statsTab" class="tab-content">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                    <div class="chart-container">
+                        <canvas id="regionChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="domainChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let wineData = [];
+        let users = {};
+        let currentUser = null;
+        let userOrders = [];
+        let filteredOrders = [];
+
+        function loadExcelFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Chercher la feuille "Commandes groupées 2025"
+                    const sheetName = "Commandes groupées 2025";
+                    if (!workbook.SheetNames.includes(sheetName)) {
+                        throw new Error(`La feuille "${sheetName}" n'a pas été trouvée dans le fichier Excel. Feuilles disponibles: ${workbook.SheetNames.join(', ')}`);
+                    }
+                    const worksheet = workbook.Sheets[sheetName];
+                    
+                    // Convertir en JSON
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    if (jsonData.length === 0) {
+                        throw new Error('Le fichier Excel est vide ou ne contient pas de données');
+                    }
+
+                    // Normaliser les données et extraire les utilisateurs
+                    wineData = normalizeData(jsonData);
+                    users = extractUsers(wineData);
+                    
+                    document.getElementById('fileStatus').textContent = `✓ ${jsonData.length} lignes chargées`;
+                    document.getElementById('fileStatus').style.display = 'block';
+                    document.getElementById('loginBtn').disabled = false;
+                    document.getElementById('loginError').textContent = '';
+                    
+                } catch (error) {
+                    document.getElementById('loginError').textContent = 'Erreur lors du chargement du fichier: ' + error.message;
+                    document.getElementById('fileStatus').style.display = 'none';
+                    document.getElementById('loginBtn').disabled = true;
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function normalizeData(jsonData) {
+            return jsonData.map(row => {
+                // Normaliser les noms de colonnes (gérer les variations possibles)
+                const normalizedRow = {};
+                
+                Object.keys(row).forEach(key => {
+                    const lowerKey = key.toLowerCase().trim().replace(/[_\s]/g, '');
+                    
+                    if (lowerKey.includes('annee') || lowerKey === 'année') {
+                        normalizedRow.Année = row[key];
+                    } else if (lowerKey.includes('date')) {
+                        normalizedRow.Date = row[key];
+                    } else if (lowerKey.includes('nomabrege') || lowerKey.includes('nom') && lowerKey.includes('abrege')) {
+                        normalizedRow['NOM Abrégé'] = row[key];
+                    } else if (lowerKey.includes('nomprenom') || lowerKey.includes('nom') && lowerKey.includes('prenom')) {
+                        normalizedRow['NOM Prénom'] = row[key];
+                    } else if (lowerKey.includes('nbtotal') || lowerKey === 'nb' || lowerKey.includes('quantite')) {
+                        normalizedRow.nb = parseInt(row[key]) || 0;
+                    } else if (lowerKey.includes('total') && !lowerKey.includes('nb')) {
+                        normalizedRow.total = parseFloat(row[key]) || 0;
+                    } else if (lowerKey.includes('reglement') || lowerKey.includes('règlement')) {
+                        normalizedRow.règlement = row[key];
+                    } else if (lowerKey.includes('region') || lowerKey.includes('région')) {
+                        normalizedRow.Région = row[key];
+                    } else if (lowerKey.includes('domaine')) {
+                        normalizedRow.Domaine = row[key];
+                    } else if (lowerKey.includes('appellation') || (lowerKey.includes('appellation') && lowerKey.includes('vin'))) {
+                        normalizedRow['Appellation, Vin'] = row[key];
+                    } else if (lowerKey.includes('prixunitaire') || (lowerKey.includes('prix') && lowerKey.includes('unitaire'))) {
+                        normalizedRow['prix unitaire'] = parseFloat(row[key]) || 0;
+                    }
+                });
+
+                // Calculer l'année à partir de la date si elle n'est pas présente
+                if (!normalizedRow.Année && normalizedRow.Date) {
+                    const date = new Date(normalizedRow.Date);
+                    if (!isNaN(date.getTime())) {
+                        normalizedRow.Année = date.getFullYear();
+                    }
+                }
+
+                // Calculer le prix unitaire si pas présent mais qu'on a total et nb
+                if (!normalizedRow['prix unitaire'] && normalizedRow.total && normalizedRow.nb > 0) {
+                    normalizedRow['prix unitaire'] = normalizedRow.total / normalizedRow.nb;
+                }
+
+                return normalizedRow;
+            }).filter(row => row['NOM Abrégé'] && row['NOM Prénom']); // Ne garder que les lignes avec nom
+        }
+
+        function extractUsers(data) {
+            const userMap = {};
+            
+            data.forEach(row => {
+                const nomAbrege = row['NOM Abrégé'];
+                const nomPrenom = row['NOM Prénom'];
+                
+                if (nomAbrege && nomPrenom && !userMap[nomAbrege]) {
+                    // Extraire le nom de famille (supposé être le premier mot en majuscules)
+                    const parts = nomPrenom.split(' ');
+                    const nomFamille = parts[0].toUpperCase();
+                    
+                    userMap[nomAbrege] = {
+                        password: nomFamille,
+                        fullName: nomPrenom
+                    };
+                }
+            });
+            
+            return userMap;
+        }
+
+        function login() {
+            const nomAbrege = document.getElementById('nomAbrege').value.trim();
+            const motDePasse = document.getElementById('motDePasse').value.trim().toUpperCase();
+            const errorDiv = document.getElementById('loginError');
+
+            if (!nomAbrege || !motDePasse) {
+                errorDiv.textContent = 'Veuillez remplir tous les champs';
+                return;
+            }
+
+            if (wineData.length === 0) {
+                errorDiv.textContent = 'Veuillez charger un fichier Excel d\'abord';
+                return;
+            }
+
+            if (users[nomAbrege] && users[nomAbrege].password === motDePasse) {
+                currentUser = nomAbrege;
+                userOrders = wineData.filter(order => order['NOM Abrégé'] === nomAbrege);
+                filteredOrders = [...userOrders];
+                
+                document.getElementById('loginContainer').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                
+                document.getElementById('userName').textContent = users[nomAbrege].fullName;
+                
+                loadDashboard();
+                errorDiv.textContent = '';
+            } else {
+                errorDiv.textContent = 'Identifiants incorrects';
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            userOrders = [];
+            filteredOrders = [];
+            
+            document.getElementById('loginContainer').style.display = 'block';
+            document.getElementById('dashboard').style.display = 'none';
+            
+            document.getElementById('nomAbrege').value = '';
+            document.getElementById('motDePasse').value = '';
+        }
+
+        function loadDashboard() {
+            updateStats();
+            loadFilters();
+            displayOrders();
+            createCharts();
+        }
+
+        function updateStats() {
+            const totalOrders = userOrders.length;
+            const totalBottles = userOrders.reduce((sum, order) => sum + (order.nb || 0), 0);
+            const totalSpent = userOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+            const avgPrice = totalBottles > 0 ? totalSpent / totalBottles : 0;
+
+            document.getElementById('totalOrders').textContent = totalOrders;
+            document.getElementById('totalBottles').textContent = totalBottles;
+            document.getElementById('totalSpent').textContent = totalSpent.toFixed(2) + '€';
+            document.getElementById('avgPrice').textContent = avgPrice.toFixed(2) + '€';
+        }
+
+        function loadFilters() {
+            const regionSelect = document.getElementById('filterRegion');
+            const yearSelect = document.getElementById('filterYear');
+            
+            // Régions uniques
+            const regions = [...new Set(userOrders.map(order => order.Région).filter(r => r))].sort();
+            regionSelect.innerHTML = '<option value="">Toutes les régions</option>';
+            regions.forEach(region => {
+                regionSelect.innerHTML += `<option value="${region}">${region}</option>`;
+            });
+            
+            // Années uniques
+            const years = [...new Set(userOrders.map(order => order.Année).filter(y => y))].sort().reverse();
+            yearSelect.innerHTML = '<option value="">Toutes les années</option>';
+            years.forEach(year => {
+                yearSelect.innerHTML += `<option value="${year}">${year}</option>`;
+            });
+        }
+
+        function displayOrders() {
+            const tbody = document.getElementById('ordersTableBody');
+            tbody.innerHTML = '';
+            
+            filteredOrders.forEach(order => {
+                const row = tbody.insertRow();
+                const date = order.Date ? new Date(order.Date) : null;
+                const dateStr = date && !isNaN(date.getTime()) ? date.toLocaleDateString('fr-FR') : 'Date inconnue';
+                
+                row.innerHTML = `
+                    <td>${dateStr}</td>
+                    <td>
+                        <div class="wine-name">${order['Appellation, Vin'] || 'Non spécifié'}</div>
+                    </td>
+                    <td><div class="domain">${order.Domaine || 'Non spécifié'}</div></td>
+                    <td>${order.Région || 'Non spécifiée'}</td>
+                    <td>${order.nb || 0}</td>
+                    <td class="price">${(order['prix unitaire'] || 0).toFixed(2)}€</td>
+                    <td class="price">${(order.total || 0).toFixed(2)}€</td>
+                `;
+            });
+        }
+
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchWine').value.toLowerCase();
+            const regionFilter = document.getElementById('filterRegion').value;
+            const yearFilter = document.getElementById('filterYear').value;
+            
+            filteredOrders = userOrders.filter(order => {
+                const matchesSearch = !searchTerm || 
+                    (order['Appellation, Vin'] && order['Appellation, Vin'].toLowerCase().includes(searchTerm)) ||
+                    (order.Domaine && order.Domaine.toLowerCase().includes(searchTerm));
+                
+                const matchesRegion = !regionFilter || order.Région === regionFilter;
+                const matchesYear = !yearFilter || order.Année && order.Année.toString() === yearFilter;
+                
+                return matchesSearch && matchesRegion && matchesYear;
+            });
+            
+            displayOrders();
+        }
+
+        function resetFilters() {
+            document.getElementById('searchWine').value = '';
+            document.getElementById('filterRegion').value = '';
+            document.getElementById('filterYear').value = '';
+            filteredOrders = [...userOrders];
+            displayOrders();
+        }
+
+        function showTab(tabName) {
+            // Masquer tous les onglets
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Afficher l'onglet sélectionné
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function createCharts() {
+            createYearlyChart();
+            createRegionChart();
+            createDomainChart();
+        }
+
+        function createYearlyChart() {
+            const ctx = document.getElementById('yearlyChart').getContext('2d');
+            
+            // Détruire le graphique existant s'il y en a un
+            if (window.yearlyChartInstance) {
+                window.yearlyChartInstance.destroy();
+            }
+            
+            // Données par année
+            const yearlyData = {};
+            userOrders.forEach(order => {
+                const year = order.Année;
+                if (year) {
+                    if (!yearlyData[year]) {
+                        yearlyData[year] = { bottles: 0, total: 0 };
+                    }
+                    yearlyData[year].bottles += order.nb || 0;
+                    yearlyData[year].total += order.total || 0;
+                }
+            });
+            
+            const years = Object.keys(yearlyData).sort();
+            const bottles = years.map(year => yearlyData[year].bottles);
+            const totals = years.map(year => yearlyData[year].total);
+            
+            window.yearlyChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: years,
+                    datasets: [{
+                        label: 'Bouteilles',
+                        data: bottles,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Montant (€)',
+                        data: totals,
+                        borderColor: '#764ba2',
+                        backgroundColor: 'rgba(118, 75, 162, 0.1)',
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Évolution des achats par année'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        }
+                    }
+                }
+            });
+        }
+
+        function createRegionChart() {
+            const ctx = document.getElementById('regionChart').getContext('2d');
+            
+            if (window.regionChartInstance) {
+                window.regionChartInstance.destroy();
+            }
+            
+            const regionData = {};
+            userOrders.forEach(order => {
+                const region = order.Région || 'Non spécifiée';
+                regionData[region] = (regionData[region] || 0) + (order.nb || 0);
+            });
+            
+            window.regionChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(regionData),
+                    datasets: [{
+                        data: Object.values(regionData),
+                        backgroundColor: ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Répartition par région'
+                        }
+                    }
+                }
+            });
+        }
+
+        function createDomainChart() {
+            const ctx = document.getElementById('domainChart').getContext('2d');
+            
+            if (window.domainChartInstance) {
+                window.domainChartInstance.destroy();
+            }
+            
+            const domainData = {};
+            userOrders.forEach(order => {
+                const domain = order.Domaine || 'Non spécifié';
+                domainData[domain] = (domainData[domain] || 0) + (order.total || 0);
+            });
+            
+            // Top 5 domaines
+            const sortedDomains = Object.entries(domainData)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 5);
+            
+            window.domainChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedDomains.map(([domain]) => domain),
+                    datasets: [{
+                        label: 'Montant dépensé (€)',
+                        data: sortedDomains.map(([, amount]) => amount),
+                        backgroundColor: '#667eea'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Top 5 des domaines (par montant)'
+                        }
+                    }
